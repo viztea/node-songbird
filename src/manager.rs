@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use napi::JsFunction;
 use napi_derive::napi;
+use reqwest::Client;
 use songbird::Call;
 use songbird::id::{GuildId, UserId};
 use songbird::shards::Sharder;
@@ -42,10 +43,12 @@ pub struct ManagerOptions {
 }
 
 #[napi]
+#[derive(Clone)]
 pub struct Manager {
-    pub(crate) sharder: Sharder,
+    sharder: Arc<Sharder>,
     user_id: UserId,
-    shard_count: u64
+    shard_count: u64,
+    pub(crate) http_client: Client
 }
 
 #[napi]
@@ -59,9 +62,10 @@ impl Manager {
             })?;
 
         Ok(Self {
-            sharder: Sharder::Generic(Arc::new(NodeSharder { submit_voice_update })),
+            sharder: Arc::new(Sharder::Generic(Arc::new(NodeSharder { submit_voice_update }))),
             user_id: UserId(options.client_info.user_id.parse().unwrap()), // TODO: handle error for this shit.
-            shard_count: options.client_info.shard_count as u64
+            shard_count: options.client_info.shard_count as u64,
+            http_client: Client::new()
         })
     }
 

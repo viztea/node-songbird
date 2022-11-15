@@ -1,11 +1,11 @@
 import "dotenv/config";
-import { initLogging, Manager, Player } from "../../";
+import { initLogging, Manager, Call, Input } from "../../";
 import { Client, GatewayDispatchEvents } from "discord.js";
 
 initLogging()
 
 const client  = new Client({ intents: [ "Guilds", "GuildVoiceStates" ] });
-const players = new Map<string, Player>();
+const calls = new Map<string, Call>();
 
 client.on("ready", async () => {
     const manager = Manager.create({
@@ -19,12 +19,20 @@ client.on("ready", async () => {
         }
     });
 
-    const player = new Player(manager, "323365823572082690");
-    players.set(player.guildId, player);
+    const call = new Call(manager, "323365823572082690");
+    calls.set(call.guildId, call);
 
-    await player.join("381612756123648000");
+    await call.join("381612756123648000");
 
-    player.play();
+    const input = Input.youtube(manager, "ytsearch:tory lanez - midnight interlude")
+    console.log(input);
+
+    const handle = call.play(input);
+    handle.addEvent("end", async () => {
+        const tc = client.channels.cache.get("1019030326745501747");
+        if (tc.isTextBased()) tc.send("ended lol")
+    });
+
 });
 
 client.on("debug", msg => {
@@ -32,13 +40,13 @@ client.on("debug", msg => {
 })
 
 client.ws.on(GatewayDispatchEvents.VoiceServerUpdate, data => {
-    const player = players.get(data.guild_id);
-    if (player) player.updateVoiceServer(data);
+    const call = calls.get(data.guild_id);
+    if (call) call.updateVoiceServer(data);
 });
 
 client.ws.on(GatewayDispatchEvents.VoiceStateUpdate, data => {
-    const player = players.get(data.guild_id);
-    if (player) player.updateVoiceState(data);
+    const call = calls.get(data.guild_id);
+    if (call) call.updateVoiceState(data);
 });
 
 client.login(process.env.DISCORD_TOKEN);
