@@ -1,0 +1,21 @@
+# node
+.yarn/
+node_modules/
+
+*.lock
+
+# compilation
+dist/
+target/
+
+*.node
+index.js
+index.d.ts
+
+# ide
+.fleet/
+.idea/
+.vscode/
+
+# bruh
+*.env
