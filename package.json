@@ -1,6 +1,6 @@
 {
-  "name": "node-songbird",
-  "version": "0.0.0",
+  "name": "@melike2d/songbird",
+  "version": "1.0.0-rc.4",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
@@ -12,6 +12,10 @@
       ]
     }
   },
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
   "license": "MIT",
   "devDependencies": {
     "@napi-rs/cli": "^2.12.1"
@@ -23,7 +27,13 @@
     "artifacts": "napi artifacts",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
-    "prepublishOnly": "napi prepublish -t npm",
+    "//prepublishOnly": "napi prepublish -t npm",
     "version": "napi version"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "optionalDependencies": {
+    "@melike2d/songbird-linux-x64-gnu": "1.0.0-rc.2"
   }
 }

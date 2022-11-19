@@ -9,17 +9,13 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { version = "2.10.1", default-features = false, features = ["napi4", "tokio_rt"] }
 napi-derive = "2.9.1"
-anyhow = "1"
 env_logger = "0.9.3"
 reqwest = "0.11.12"
-
-# shit needed by songbird
-once_cell = "1"
-dashmap = "5"
 async-trait = "0.1"
 
 [dependencies.songbird]
-features = ["driver"]
+features = ["driver", "rustls", "gateway"]
+default-features = false
 git = "https://github.com/serenity-rs/songbird"
 branch = "next"
 

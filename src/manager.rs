@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use napi::JsFunction;
 use napi_derive::napi;
-use reqwest::Client;
 use songbird::Call;
 use songbird::id::{GuildId, UserId};
-use songbird::shards::Sharder;
+use songbird::shards::{Shard, GenericSharder};
 
-use crate::shards::NodeSharder;
+use crate::driver::Driver;
+use crate::driver::shards::NodeSharder;
 
 #[napi(object)]
 #[derive(Debug)]
@@ -30,61 +30,60 @@ pub struct Fuck2 {
 }
 
 #[napi(object)]
-pub struct ClientInfo {
-    pub user_id: String,
-    pub shard_count: i32
+pub struct DriverOptions {
+    #[napi(ts_type = "(err: Error | null, data: Fuck) => void")]
+    pub submit_voice_update: JsFunction,
+    pub shard_count: i32,
 }
 
 #[napi(object)]
 pub struct ManagerOptions {
-    #[napi(ts_type = "(err: Error | null, data: Fuck) => void")]
-    pub submit_voice_update: JsFunction,
-    pub client_info: ClientInfo,
+    pub driver: Option<DriverOptions>,
+    pub user_id: String,
 }
 
 #[napi]
-#[derive(Clone)]
 pub struct Manager {
-    sharder: Arc<Sharder>,
+    driver: Option<Driver>,
     user_id: UserId,
-    shard_count: u64,
-    pub(crate) http_client: Client
 }
 
 #[napi]
 impl Manager {
     #[napi(factory)]
     pub fn create(options: ManagerOptions) -> napi::Result<Self> {
-        let submit_voice_update = options.submit_voice_update
-            .create_threadsafe_function(0, |ctx| {
-                println!("{:?}", ctx.value);
-                Ok(vec![ctx.value])
-            })?;
+        let driver = options.driver.map(|driver_options | {
+            let submit_voice_update = driver_options.submit_voice_update
+                .create_threadsafe_function(0, |ctx| Ok(vec![ctx.value]))
+                .unwrap();
+
+            Driver {
+                sharder: Arc::new(NodeSharder { submit_voice_update }),
+                shard_count: driver_options.shard_count as u64
+            }
+        });
 
         Ok(Self {
-            sharder: Arc::new(Sharder::Generic(Arc::new(NodeSharder { submit_voice_update }))),
-            user_id: UserId(options.client_info.user_id.parse().unwrap()), // TODO: handle error for this shit.
-            shard_count: options.client_info.shard_count as u64,
-            http_client: Client::new()
+            user_id: UserId(options.user_id.parse().unwrap()), // TODO: handle error for this shit.
+            driver
         })
     }
 
     pub(crate) fn create_call(&self, guild_id: &str) -> Option<Call> {
-        let shard = match self.sharder.get_shard(self.shard_id(guild_id)) {
-            Some(shard) => shard,
-            None => return None,
-        };
+        let guild_id = to_guild_id(guild_id);
 
-        Some(Call::new(
-            to_guild_id(guild_id),
-            shard,
-            self.user_id
-        ))
-    }
+        Some(if let Some(driver) = self.driver.as_ref() {
+            let shard = match driver.sharder.get_shard(
+                (guild_id.0.get() >> 22) % driver.shard_count
+            ) {
+                Some(shard) => shard,
+                None => return None,
+            };
 
-    pub(crate) fn shard_id(&self, guild_id: &str) -> u64 {
-        let guild_id_u64 = guild_id.parse::<u64>().unwrap();
-        (guild_id_u64 >> 22) % self.shard_count
+            Call::new(guild_id, Shard::Generic(shard), self.user_id)
+        } else {
+            Call::standalone(guild_id, self.user_id)
+        })
     }
 }
 
